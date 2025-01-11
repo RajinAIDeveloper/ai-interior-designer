@@ -5,7 +5,7 @@ export const Users_schema = pgTable('users', {
     name: varchar('name').notNull(),
     email: varchar('email').notNull(),
     imageUrl: varchar('imageUrl').notNull(),
-    credits: integer('credits').default(3)
+    credits: integer('credits').default(0)
 });
 
 export const AiGeneratedImage = pgTable('ai_generated_images', {

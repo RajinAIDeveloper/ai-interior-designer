@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import React, { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { validateImage } from './upload-utils'
+import { validateImage } from '@/utils/public-utils'
 
 const ImageSelection = ({ selectedImage }) => {
     const [file, setFile] = useState()

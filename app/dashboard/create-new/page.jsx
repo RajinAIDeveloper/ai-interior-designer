@@ -1,6 +1,5 @@
 'use client'
-import React, { useContext, useEffect } from 'react'
-import { UserDetailContext } from '@/app/_context/UserDetailContext';
+import React, { useEffect } from 'react'
 import { uploadImage } from "../../supabase/client";
 import ImageSelection from './_components/ImageSelection'
 import RoomType from './_components/RoomType'
@@ -14,39 +13,50 @@ import LoadingBody from './_components/BodyLoader';
 import { toast } from "react-hot-toast";
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import useUserStore from '@/store/useUserStore';
 
 const CreateNewRoomDesign = () => {
-  const { userDetail, setUserDetail } = useContext(UserDetailContext);
-  const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { user, isLoaded } = useUser();
   
+  // Zustand store for application state
+  const userDetail = useUserStore((state) => state.userDetail);
+  const updateCredits = useUserStore((state) => state.updateCredits);
+  const verifyUser = useUserStore((state) => state.verifyUser);
+  const hasEnoughCredits = useUserStore((state) => state.hasEnoughCredits);
+  
+  // Local state
   const [formData, setFormData] = React.useState({});
   const [isLoading, setIsLoading] = React.useState(false);
   const [aiOutputImage, setAiOutputImage] = React.useState(null);
-  const [originalImage, setoriginalImage] = React.useState();
+  const [originalImage, setOriginalImage] = React.useState();
   const [openOutputDialog, setOpenOutputDialog] = React.useState(false);
 
-  // Effect to handle user detail initialization
+  // Effect to verify user and check credits
   useEffect(() => {
-    const initializeUserDetail = async () => {
+    const initializeUser = async () => {
       if (isLoaded && user && !userDetail) {
         try {
-          // Fetch user details from your backend
-          const response = await axios.get(`/api/user-details?email=${user.emailAddresses[0].emailAddress}`);
-          if (response.data) {
-            setUserDetail(response.data);
-          }
+          await verifyUser(user);
         } catch (error) {
-          console.error('Error fetching user details:', error);
+          console.error('Error initializing user:', error);
           toast.error('Failed to load user details. Please try refreshing the page.');
         }
       }
     };
 
-    initializeUserDetail();
-  }, [isLoaded, user, userDetail, setUserDetail]);
+    initializeUser();
+  }, [isLoaded, user, userDetail, verifyUser]);
 
-  // Show loading state only during initial load
+  // Effect to handle zero credits
+  useEffect(() => {
+    if (userDetail && userDetail.credits === 0) {
+      toast.error('You need credits to generate designs. Please purchase credits to continue.');
+      router.replace('/dashboard/buy-credits');
+    }
+  }, [userDetail, router]);
+
+  // Show loading state during initial load
   if (!isLoaded || (isLoaded && user && !userDetail)) {
     return <LoadingBody />;
   }
@@ -58,32 +68,22 @@ const CreateNewRoomDesign = () => {
   }
 
   const onHandleFileSelected = (value, fileType) => {
-    setFormData(prev => ({...prev, [fileType]:value}));
+    setFormData(prev => ({...prev, [fileType]: value}));
   }
 
   const checkCredits = async () => {
-    try {
-      if (!userDetail?.id) {
-        toast.error('User details not found. Please try refreshing the page.');
-        return false;
-      }
-
-      const response = await axios.post('/api/check-credits', {
-        userId: userDetail.id
-      });
-
-      if (response.data.success && response.data.hasEnoughCredits) {
-        return true;
-      } else {
-        toast.error('Insufficient credits. Please purchase credits to continue.');
-        router.push('/dashboard/buy-credits');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking credits:', error);
-      toast.error('Failed to verify credits. Please try again.');
+    if (!userDetail?.id) {
+      toast.error('User details not found. Please try refreshing the page.');
       return false;
     }
+
+    if (!hasEnoughCredits()) {
+      toast.error('You need credits to generate designs. Please purchase credits to continue.');
+      router.replace('/dashboard/buy-credits');
+      return false;
+    }
+
+    return true;
   };
 
   const GenerateAiImage = async () => {
@@ -107,7 +107,7 @@ const CreateNewRoomDesign = () => {
         throw new Error('Failed to upload image');
       }
 
-      setoriginalImage(imageUrl);
+      setOriginalImage(imageUrl);
       
       const result = await axios.post('/api/redesign-room', {
         imageUrl: imageUrl,
@@ -125,10 +125,7 @@ const CreateNewRoomDesign = () => {
       });
 
       if (response.data.success) {
-        setUserDetail(prev => ({
-          ...prev,
-          credits: response.data.updatedCredits
-        }));
+        updateCredits(response.data.updatedCredits);
         toast.success('Design generated successfully!');
         setOpenOutputDialog(true);
       } else {
@@ -160,12 +157,16 @@ const CreateNewRoomDesign = () => {
           <Button 
             className='mt-5 w-full' 
             onClick={GenerateAiImage}
-            disabled={isLoading || !formData.image || !formData.roomType || !formData.designType}
+            disabled={isLoading || !formData.image || !formData.roomType || 
+                     !formData.designType || !hasEnoughCredits()}
           >
-            Create Room Design
+            {!hasEnoughCredits() 
+              ? 'Purchase Credits to Generate Designs' 
+              : 'Create Room Design'
+            }
           </Button>
           <p className='text-sm text-gray-500 mb-52'>
-            Note: 1 Credit will be used to redesign your room. You can top up your credits at any time.
+            Note: 1 Credit will be used to redesign your room. You currently have {userDetail?.credits || 0} credits.
           </p>
         </div>
       </div>

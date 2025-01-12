@@ -1,43 +1,61 @@
+// app/api/verify-user/route.js
 import { NextResponse } from "next/server";
-import { db } from '../../../config/db'
+import { db } from '../../../config/db';
 import { eq } from "drizzle-orm";
-import { Users_schema } from '../../../config/schema'
-export async function POST(req){
-    const {user}=await req.json();
-    // console.log('DATABASE_URL:', process.env.DATABASE_URL);
+import { Users_schema } from '../../../config/schema';
 
+export async function POST(req) {
+  try {
+    const { user } = await req.json();
+    
+    // Extract email from Clerk user object
+    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.email;
 
-    try {
-        const userInfo = await db.select().from(Users_schema).where(eq(Users_schema.email, user.primaryEmailAddress.emailAddress)).execute();
-        console.log(userInfo);
+    // Validate user data
+    if (!userEmail) {
+      console.error('Invalid user email:', userEmail);
+      return NextResponse.json(
+        { error: 'Invalid user email' },
+        { status: 400 }
+      );
+    }
 
-        if(userInfo.length===0){
-            const SaveResult = await db.insert(Users_schema).values({
-                name:user?.fullName,
-                email:user?.primaryEmailAddress.emailAddress,
-                imageUrl:user?.imageUrl,
-            });
-            // return NextResponse.json({result:SaveResult[0]})
-            
-            console.log('User Created');
-            return NextResponse.json({result:SaveResult[0]})   
-        }
-        console.log('User Already Exist:  ', userInfo[0]);
-        return NextResponse.json({result:userInfo[0]})
-      } catch (error) {
-        return NextResponse.json({error:e})
-      }
+    // Query for existing user
+    const userInfo = await db
+      .select()
+      .from(Users_schema)
+      .where(eq(Users_schema.email, userEmail))
+      .execute();
 
-    // try {
-    //     // if User Already Exist?
-        
+    console.log('Query result:', userInfo);
 
-    // }
-    // catch(e) {
+    // Check if user exists
+    if (!userInfo || userInfo.length === 0) {
+      console.log('User not found:', userEmail);
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
 
-    // }
-    // const userInfo = await db.select().from(Users_schema).where(eq(Users_schema.email,user.email)).execute();
-    // console.log('user', userInfo);
+    // User found
+    console.log('User found:', userInfo[0]);
+    return NextResponse.json(
+      { 
+        result: userInfo[0],
+        status: 'success' 
+      },
+      { status: 200 }
+    );
 
-    return NextResponse.json({result:user})
+  } catch (error) {
+    console.error('Error in verify-user:', error);
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    );
+  }
 }

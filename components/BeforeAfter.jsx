@@ -6,15 +6,15 @@ import { ArrowRight } from 'lucide-react';
 const beforeAfterExamples = [
   {
     id: 1,
-    before: "https://idovwputkmimglkmxedh.supabase.co/storage/v1/object/public/room_images/43991b55-1c1c-41da-b7d3-866f52f824b6.jpg",
-    after: "https://idovwputkmimglkmxedh.supabase.co/storage/v1/object/public/room_images/b9e3a7f5-9ea1-4b47-8084-c0630d02c832.png",
-    title: "Empty to Office Transformation",
+    before: "/empty_room.jpg",
+    after: "/bed_room.png",
+    title: "Empty to Spacious Bedroom Transformation",
   },
   {
     id: 2,
-    before: "https://idovwputkmimglkmxedh.supabase.co/storage/v1/object/public/room_images/5b225f71-6d6d-4d10-b079-5630382ec48e.jpg",
-    after: "https://idovwputkmimglkmxedh.supabase.co/storage/v1/object/public/room_images/a6886809-81ed-4fa7-84aa-5b4ed42029a6.png",
-    title: "Empty Space to Game Living Room Transformation",
+    before: "/empty_room_2.jpg",
+    after: "/dinning_room.png",
+    title: "Empty Space to Luxury Dining Room Transformation",
   },
   // Add more examples as needed
 ];

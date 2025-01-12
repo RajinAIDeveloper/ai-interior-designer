@@ -8,16 +8,19 @@ export async function POST(req) {
   try {
     const { userId, currentCredits } = await req.json();
 
-    if (!userId) {
+    // Add validation for userId
+    if (!userId || typeof userId !== 'number') {
       return NextResponse.json(
-        { error: "User ID is required" },
+        { error: "Valid user ID is required" },
         { status: 400 }
       );
     }
 
-    if (currentCredits <= 0) {
+    // Add validation for currentCredits
+    const credits = Number(currentCredits);
+    if (isNaN(credits) || credits <= 0) {
       return NextResponse.json(
-        { error: "Insufficient credits" },
+        { error: "Invalid or insufficient credits" },
         { status: 400 }
       );
     }
@@ -26,7 +29,7 @@ export async function POST(req) {
     const result = await db
       .update(Users_schema)
       .set({
-        credits: currentCredits - 1
+        credits: credits - 1 // Use the validated credits value
       })
       .where(eq(Users_schema.id, userId))
       .returning();

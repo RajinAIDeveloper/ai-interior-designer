@@ -24,23 +24,23 @@ export async function POST(req) {
     }
     // Instead of processing the image, we'll pass it directly to Replicate
     // and let their API handle the image format conversion
-    const output = await replicate.run(
-      process.env.NEXT_PUBLIC_REPLICATE_API_URL,
-      {
-       input 
-      }
-    );
+    // const output = await replicate.run(
+    //   process.env.NEXT_PUBLIC_REPLICATE_API_URL,
+    //   {
+    //    input 
+    //   }
+    // );
 
-    console.log('oututis is: ', output)
+    // console.log('oututis is: ', output)
 
     
-    if (output?.error) {
-      throw new Error(output.error);
-    }
+    // if (output?.error) {
+    //   throw new Error(output.error);
+    // }
 
     // return NextResponse.json({ result: output });
 
-    // const output = 'https://replicate.delivery/xezq/nuiVd5T9frSIG6Ujum9RmqFBBDL9XKyooTo8NUYMOeXPirDUA/out.png';
+    const output = 'https://idovwputkmimglkmxedh.supabase.co/storage/v1/object/public/room_images/2a1ea040-fcf3-4fca-8c00-64ca9f923842.png';
     
     const file = await urlToUploadableFile(output);
   
@@ -69,7 +69,7 @@ export async function POST(req) {
       userEmail: userEmail,
   }).returning({ id: AiGeneratedImage.id });
 
-    return NextResponse.json({ result: uploadedUrl });
+    return NextResponse.json({ result: uploadedUrl, success: true });
 
   } catch (error) {
     console.error('Error processing request:', error);

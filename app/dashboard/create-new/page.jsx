@@ -108,6 +108,12 @@ const CreateNewRoomDesign = () => {
       }
 
       setOriginalImage(imageUrl);
+
+      
+
+      // updateCredits();
+      //   toast.success('Design generated successfully!');
+      //   setOpenOutputDialog(true);
       
       const result = await axios.post('/api/redesign-room', {
         imageUrl: imageUrl,
@@ -116,21 +122,30 @@ const CreateNewRoomDesign = () => {
         additional: formData.additional,
         userEmail: user.emailAddresses[0].emailAddress
       });
+
+      
       
       setAiOutputImage(result.data.result);
 
-      const response = await axios.post('/api/deduct-credits', {
-        userId: userDetail.id,
-        currentCredits: userDetail.credits || 0
-      });
 
-      if (response.data.success) {
-        updateCredits(response.data.updatedCredits);
+      if (result.data.success) {
+        updateCredits(result.data.updatedCredits);
         toast.success('Design generated successfully!');
-        setOpenOutputDialog(true);
+        
       } else {
         throw new Error(response.data.error || 'Failed to update credits');
       }
+
+      setOpenOutputDialog(true);
+
+
+
+      // const response = await axios.post('/api/deduct-credits', {
+      //   userId: userDetail.id,
+      //   currentCredits: userDetail.credits || 0
+      // });
+
+      
     } catch (error) {
       console.error('Error generating room design:', error);
       toast.error(error.message || 'Failed to generate room design');

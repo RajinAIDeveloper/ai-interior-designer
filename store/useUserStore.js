@@ -175,17 +175,7 @@ const useUserStore = create((set, get) => ({
     return hasEnough;
   },
 
-  updateCredits: async (newCredits) => {
-    log('💰 Attempting credit update:', newCredits);
-    
-    // Input validation
-    if (typeof newCredits !== 'number' || newCredits < 0) {
-      const error = 'Invalid credit amount provided';
-      log('❌ Invalid credit update attempted:', { newCredits, error });
-      toastControl.showToast(error, 'error');
-      return false;
-    }
-  
+  updateCredits: async () => {
     const state = get();
     
     // User validation
@@ -195,28 +185,36 @@ const useUserStore = create((set, get) => ({
       toastControl.showToast('Please log in to update credits', 'error');
       return false;
     }
-  
+
+    // Credit validation
+    if (state.userDetail.credits < 1) {
+      const error = 'Insufficient credits';
+      log('❌ Cannot update credits:', error);
+      toastControl.showToast(error, 'error');
+      return false;
+    }
+
     try {
-      const response = await axios.post('/api/update-credits', {
+      const response = await axios.post('/api/deduct-credits', {
         userId: state.userDetail.id,
-        newCredits: newCredits // Make sure field name matches API expectation
+        currentCredits: state.userDetail.credits
       });
-  
+
       if (!response.data?.success) {
         throw new Error(response.data?.error || 'Failed to update credits');
       }
-  
-      // Update local state
+
+      // Update local state with the value returned from the server
       set(state => ({
         userDetail: {
           ...state.userDetail,
-          credits: newCredits
+          credits: response.data.updatedCredits
         }
       }));
-  
-      log('✅ Credits updated successfully:', newCredits);
+
+      log('✅ Credits updated successfully:', response.data.updatedCredits);
       return true;
-  
+
     } catch (error) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to update credits';
       log('❌ Error updating credits:', errorMessage);
@@ -224,6 +222,8 @@ const useUserStore = create((set, get) => ({
       return false;
     }
   },
+
+  
   
   clearUser: () => {
     log('🧹 Clearing user state');

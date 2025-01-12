@@ -122,8 +122,6 @@ const CreateNewRoomDesign = () => {
         additional: formData.additional,
         userEmail: user.emailAddresses[0].emailAddress
       });
-
-      
       
       setAiOutputImage(result.data.result);
 
@@ -133,7 +131,7 @@ const CreateNewRoomDesign = () => {
         toast.success('Design generated successfully!');
         
       } else {
-        throw new Error(response.data.error || 'Failed to update credits');
+        throw new Error(result.data.error || 'Failed to update credits');
       }
 
       setOpenOutputDialog(true);

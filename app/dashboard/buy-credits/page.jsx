@@ -100,8 +100,14 @@ const CreditPurchase = () => {
 
   if (!userDetail) {
     return (
-      <div className="max-w-6xl mx-auto p-6 text-center">
+      <div className="max-w-6xl mx-auto p-6 text-center space-y-4">
         <p className="text-red-600">Please log in to purchase credits</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
+        >
+          Reload Page
+        </button>
       </div>
     );
   }

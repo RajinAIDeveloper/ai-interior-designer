@@ -34,9 +34,11 @@ const ImageSelection = ({ selectedImage }) => {
             </label>
             <div className="mt-3">
                 <label htmlFor="upload-image">
-                    <div className={`p-28 border rounded-xl border-dotted flex justify-center items-center border-blue-700 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-all ${
-                        file ? 'p-0 bg-white' : ''
-                    }`}>
+                    <div 
+                        className={`p-28 border rounded-xl border-dotted flex justify-center items-center border-blue-700 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-all ${
+                            file ? 'p-0 bg-white' : ''
+                        }`}
+                    >
                         {!file ? (
                             <Image
                                 src="/upload-image.svg"
@@ -49,7 +51,7 @@ const ImageSelection = ({ selectedImage }) => {
                             <Image
                                 className="w-full h-[300px] object-cover rounded-xl"
                                 src={URL.createObjectURL(file)}
-                                alt="upload-image"
+                                alt="uploaded-image"
                                 width={300}
                                 height={300}
                             />

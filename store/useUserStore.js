@@ -178,41 +178,53 @@ const useUserStore = create((set, get) => ({
   updateCredits: async (newCredits) => {
     log('💰 Attempting credit update:', newCredits);
     
+    // Input validation
     if (typeof newCredits !== 'number' || newCredits < 0) {
-      log('❌ Invalid credit update attempted:', newCredits);
-      toast.error('Invalid credit update');
-      return;
+      const error = 'Invalid credit amount provided';
+      log('❌ Invalid credit update attempted:', { newCredits, error });
+      toastControl.showToast(error, 'error');
+      return false;
     }
-
+  
     const state = get();
+    
+    // User validation
     if (!state.userDetail?.id) {
-      log('❌ Cannot update credits: No user logged in');
-      toast.error('Please log in to update credits');
-      return;
+      const error = 'User not logged in';
+      log('❌ Cannot update credits:', error);
+      toastControl.showToast('Please log in to update credits', 'error');
+      return false;
     }
-
+  
     try {
       const response = await axios.post('/api/update-credits', {
         userId: state.userDetail.id,
-        credits: newCredits
+        newCredits: newCredits // Make sure field name matches API expectation
       });
-
-      if (response.data?.success) {
-        set((state) => ({
-          userDetail: state.userDetail
-            ? { ...state.userDetail, credits: newCredits }
-            : null
-        }));
-        log('✅ Credits updated successfully:', newCredits);
-        toast.success('Credits updated successfully');
+  
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to update credits');
       }
+  
+      // Update local state
+      set(state => ({
+        userDetail: {
+          ...state.userDetail,
+          credits: newCredits
+        }
+      }));
+  
+      log('✅ Credits updated successfully:', newCredits);
+      return true;
+  
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to update credits';
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to update credits';
       log('❌ Error updating credits:', errorMessage);
-      toast.error(errorMessage);
+      toastControl.showToast(errorMessage, 'error');
+      return false;
     }
   },
-
+  
   clearUser: () => {
     log('🧹 Clearing user state');
     set({

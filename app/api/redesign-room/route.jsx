@@ -5,10 +5,10 @@ import { uploadImage } from "../../../app/supabase/client";
 import { db } from "../../../config/db";
 import { AiGeneratedImage } from "../../../config/schema";
 
-// New Next.js 14 route configuration format
-export const runtime = 'nodejs'; // 'edge' or 'nodejs'
+// Configure for Vercel hobby plan limitations
+export const maxDuration = 60;
+export const runtime = 'edge'; // Using edge runtime for better performance
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
 
 export async function POST(req) {
   const { imageUrl, roomType, designType, additional, userEmail } = await req.json();
@@ -19,9 +19,9 @@ export async function POST(req) {
   });
 
   try {
-    // Add timeout promise
+    // Add timeout promise with 55 seconds (leaving 5 seconds buffer)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 240000); // 4 minute timeout
+      setTimeout(() => reject(new Error('Request timeout')), 55000);
     });
 
     const input = {
@@ -74,13 +74,21 @@ export async function POST(req) {
   } catch (error) {
     console.error('Error processing request:', error);
     
-    // Return more detailed error information
+    if (error.message === 'Request timeout') {
+      // Return a specific response for timeouts that the frontend can handle
+      return NextResponse.json({
+        error: true,
+        message: 'Image generation is still in progress. Please check back in a few moments.',
+        status: 'PENDING',
+      }, { status: 202 }); // Using 202 Accepted to indicate the request is still processing
+    }
+    
     return NextResponse.json({
       error: true,
       message: error.message || 'Failed to process image',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { 
-      status: error.message === 'Request timeout' ? 504 : 500 
+      status: 500 
     });
   }
 }

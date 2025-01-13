@@ -86,71 +86,85 @@ const CreateNewRoomDesign = () => {
     return true;
   };
 
-  const GenerateAiImage = async () => {
-    if (!formData.image || !formData.roomType || !formData.designType) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+  // In your CreateNewRoomDesign component
 
-    try {
-      const hasCredits = await checkCredits();
-      if (!hasCredits) return;
-
-      setIsLoading(true);
-      
-      const { imageUrl, error } = await uploadImage({
-        file: formData.image,
-        bucket: "room_images",
-      });
-
-      if (error) {
-        throw new Error('Failed to upload image');
-      }
-
-      setOriginalImage(imageUrl);
-
-      
-
-      // updateCredits();
-      //   toast.success('Design generated successfully!');
-      //   setOpenOutputDialog(true);
-      
-      const result = await axios.post('/api/redesign-room', {
-        imageUrl: imageUrl,
-        roomType: formData.roomType,
-        designType: formData.designType,
-        additional: formData.additional,
-        userEmail: user.emailAddresses[0].emailAddress
-      });
-      
-      setAiOutputImage(result.data.result);
-
-
-      if (result.data.success) {
-        updateCredits(result.data.updatedCredits);
-        toast.success('Design generated successfully!');
-        
-      } else {
-        throw new Error(result.data.error || 'Failed to update credits');
-      }
-
-      setOpenOutputDialog(true);
-
-
-
-      // const response = await axios.post('/api/deduct-credits', {
-      //   userId: userDetail.id,
-      //   currentCredits: userDetail.credits || 0
-      // });
-
-      
-    } catch (error) {
-      console.error('Error generating room design:', error);
-      toast.error(error.message || 'Failed to generate room design');
-    } finally {
-      setIsLoading(false);
-    }
+const GenerateAiImage = async () => {
+  if (!formData.image || !formData.roomType || !formData.designType) {
+    toast.error('Please fill in all required fields');
+    return;
   }
+
+  try {
+    const hasCredits = await checkCredits();
+    if (!hasCredits) return;
+
+    setIsLoading(true);
+    
+    const { imageUrl, error } = await uploadImage({
+      file: formData.image,
+      bucket: "room_images",
+    });
+
+    if (error) {
+      throw new Error('Failed to upload image');
+    }
+
+    setOriginalImage(imageUrl);
+
+    // Start generation request
+    const result = await axios.post('/api/redesign-room', {
+      imageUrl: imageUrl,
+      roomType: formData.roomType,
+      designType: formData.designType,
+      additional: formData.additional,
+      userEmail: user.emailAddresses[0].emailAddress
+    });
+
+    // Check if the request is still processing
+    if (result.status === 202) {
+      toast.loading('Generating your design. This might take a few minutes...');
+      
+      // Start polling for the result
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const pollResult = async () => {
+        try {
+          const pollResponse = await axios.get(`/api/check-generation-status?id=${result.data.requestId}`);
+          
+          if (pollResponse.data.status === 'COMPLETED') {
+            setAiOutputImage(pollResponse.data.result);
+            updateCredits(pollResponse.data.updatedCredits);
+            toast.success('Design generated successfully!');
+            setOpenOutputDialog(true);
+          } else if (attempts < maxAttempts) {
+            attempts++;
+            setTimeout(pollResult, 30000); // Poll every 30 seconds
+          } else {
+            throw new Error('Generation timed out after multiple attempts');
+          }
+        } catch (error) {
+          console.error('Error polling for result:', error);
+          toast.error('Failed to generate design. Please try again.');
+        }
+      };
+
+      await pollResult();
+    } else {
+      // Handle immediate success case
+      setAiOutputImage(result.data.result);
+      updateCredits(result.data.updatedCredits);
+      toast.success('Design generated successfully!');
+      setOpenOutputDialog(true);
+    }
+
+  } catch (error) {
+    console.error('Error generating room design:', error);
+    toast.error(error.response?.data?.message || 'Failed to generate room design');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div>

@@ -5,78 +5,88 @@ import { uploadImage } from "../../../app/supabase/client";
 import { db } from "../../../config/db";
 import { AiGeneratedImage } from "../../../config/schema";
 
+// Configure timeout for the entire request
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+    responseLimit: '50mb',
+  },
+  maxDuration: 300, // Set max duration to 5 minutes
+};
 
 export async function POST(req) {
-  const { imageUrl, roomType, designType, additional,userEmail } = await req.json();
+  const { imageUrl, roomType, designType, additional, userEmail } = await req.json();
   const originalImageUrl = imageUrl;
-  
+
   const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN,
   });
 
-
   try {
+    // Add timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 240000); // 4 minute timeout
+    });
 
-    
     const input = {
       image: imageUrl,
-      prompt: `A ${roomType} with a ${designType} style interior ${'extra info: ', additional || ''}`.trim(),
-    }
-    // Instead of processing the image, we'll pass it directly to Replicate
-    // and let their API handle the image format conversion
-    const output = await replicate.run(
-      process.env.REPLICATE_API_URL,
-      {
-       input 
-      }
-    );
+      prompt: `A ${roomType} with a ${designType} style interior ${
+        additional ? 'extra info: ' + additional : ''
+      }`.trim(),
+    };
 
-    console.log('oututis is: ', output)
+    // Race between the Replicate API call and timeout
+    const output = await Promise.race([
+      replicate.run(process.env.REPLICATE_API_URL, { input }),
+      timeoutPromise,
+    ]);
 
-    
-    if (output?.error) {
-      // throw new Error(output.error);
-      return NextResponse.json({ result: error, success: false });
+    if (!output || output?.error) {
+      throw new Error(output?.error || 'Failed to generate image');
     }
 
-    // return NextResponse.json({ result: output });
-
-    // const output = 'https://idovwputkmimglkmxedh.supabase.co/storage/v1/object/public/room_images/2a1ea040-fcf3-4fca-8c00-64ca9f923842.png';
-    
     const file = await urlToUploadableFile(output);
-  
-    // Change this line - use imageUrl instead of OutputimageUrl
-    const { imageUrl: uploadedUrl, error } = await uploadImage({
+    
+    const { imageUrl: uploadedUrl, error: uploadError } = await uploadImage({
       file: file,
       bucket: "room_images"
     });
 
-    if (error) {
-      throw new Error(error);
+    if (uploadError) {
+      throw new Error(uploadError);
     }
 
     if (!uploadedUrl) {
       throw new Error('No URL returned from upload');
     }
 
-    console.log('stored outputimage is', uploadedUrl);
-
-    // Save all to database
+    // Save to database with error handling
     const dbResult = await db.insert(AiGeneratedImage).values({
       roomType: roomType,
       designType: designType,
       orgImage: originalImageUrl,
       aiImage: uploadedUrl,
       userEmail: userEmail,
-  }).returning({ id: AiGeneratedImage.id });
+    }).returning({ id: AiGeneratedImage.id });
 
-    return NextResponse.json({ result: uploadedUrl, success: true });
+    return NextResponse.json({ 
+      result: uploadedUrl, 
+      success: true,
+      dbId: dbResult[0]?.id 
+    });
 
   } catch (error) {
     console.error('Error processing request:', error);
-    return NextResponse.json({ 
-      error: true, 
-      message: error.message || 'Failed to process image'
-    }, { status: 500 });
+    
+    // Return more detailed error information
+    return NextResponse.json({
+      error: true,
+      message: error.message || 'Failed to process image',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { 
+      status: error.message === 'Request timeout' ? 504 : 500 
+    });
   }
 }

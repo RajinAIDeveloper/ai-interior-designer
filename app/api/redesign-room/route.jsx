@@ -11,7 +11,7 @@ export async function POST(req) {
   const originalImageUrl = imageUrl;
   
   const replicate = new Replicate({
-    auth: process.env.NEXT_PUBLIC_REPLICATE_API_TOKEN,
+    auth: process.env.REPLICATE_API_TOKEN,
   });
 
 
@@ -25,7 +25,7 @@ export async function POST(req) {
     // Instead of processing the image, we'll pass it directly to Replicate
     // and let their API handle the image format conversion
     const output = await replicate.run(
-      process.env.NEXT_PUBLIC_REPLICATE_API_URL,
+      process.env.REPLICATE_API_URL,
       {
        input 
       }
@@ -35,7 +35,8 @@ export async function POST(req) {
 
     
     if (output?.error) {
-      throw new Error(output.error);
+      // throw new Error(output.error);
+      return NextResponse.json({ result: error, success: false });
     }
 
     // return NextResponse.json({ result: output });

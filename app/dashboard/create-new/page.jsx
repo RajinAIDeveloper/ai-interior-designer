@@ -88,83 +88,105 @@ const CreateNewRoomDesign = () => {
 
   // In your CreateNewRoomDesign component
 
-const GenerateAiImage = async () => {
-  if (!formData.image || !formData.roomType || !formData.designType) {
-    toast.error('Please fill in all required fields');
-    return;
-  }
-
-  try {
-    const hasCredits = await checkCredits();
-    if (!hasCredits) return;
-
-    setIsLoading(true);
-    
-    const { imageUrl, error } = await uploadImage({
-      file: formData.image,
-      bucket: "room_images",
-    });
-
-    if (error) {
-      throw new Error('Failed to upload image');
+  const GenerateAiImage = async () => {
+    if (!formData.image || !formData.roomType || !formData.designType) {
+      toast.error('Please fill in all required fields');
+      return;
     }
-
-    setOriginalImage(imageUrl);
-
-    // Start generation request
-    const result = await axios.post('/api/redesign-room', {
-      imageUrl: imageUrl,
-      roomType: formData.roomType,
-      designType: formData.designType,
-      additional: formData.additional,
-      userEmail: user.emailAddresses[0].emailAddress
-    });
-
-    // Check if the request is still processing
-    if (result.status === 202) {
-      toast.loading('Generating your design. This might take a few minutes...');
+  
+    try {
+      const hasCredits = await checkCredits();
+      if (!hasCredits) return;
+  
+      setIsLoading(true);
       
-      // Start polling for the result
+      // First upload the input image
+      const { imageUrl, error } = await uploadImage({
+        file: formData.image,
+        bucket: "room_images",
+      });
+  
+      if (error) {
+        throw new Error('Failed to upload image');
+      }
+  
+      setOriginalImage(imageUrl);
+  
+      // Start the generation process
+      const result = await axios.post('/api/redesign-room', {
+        imageUrl: imageUrl,
+        roomType: formData.roomType,
+        designType: formData.designType,
+        additional: formData.additional,
+        userEmail: user.emailAddresses[0].emailAddress
+      });
+  
+      if (!result.data.success) {
+        throw new Error('Failed to start generation');
+      }
+  
+      const { predictionId, dbId } = result.data;
+      const toastId = toast.loading('Generating your design. This might take a few minutes...');
+  
+      // Setup polling
       let attempts = 0;
-      const maxAttempts = 10;
-      
-      const pollResult = async () => {
+      const maxAttempts = 15; // 5 minutes total with 20s intervals
+      const pollInterval = 20000; // 20 seconds
+  
+      const checkStatus = async () => {
+        if (attempts >= maxAttempts) {
+          toast.dismiss(toastId);
+          toast.error('Generation is taking longer than expected. Please check your designs page later.');
+          setIsLoading(false);
+          return;
+        }
+  
         try {
-          const pollResponse = await axios.get(`/api/check-generation-status?id=${result.data.requestId}`);
-          
+          const pollResponse = await axios.get('/api/check-generation-status', {
+            params: { 
+              predictionId,
+              dbId
+            }
+          });
+  
           if (pollResponse.data.status === 'COMPLETED') {
+            toast.dismiss(toastId);
             setAiOutputImage(pollResponse.data.result);
-            updateCredits(pollResponse.data.updatedCredits);
+            updateCredits();
             toast.success('Design generated successfully!');
             setOpenOutputDialog(true);
-          } else if (attempts < maxAttempts) {
-            attempts++;
-            setTimeout(pollResult, 30000); // Poll every 30 seconds
-          } else {
-            throw new Error('Generation timed out after multiple attempts');
+            setIsLoading(false);
+            return;
           }
+  
+          if (pollResponse.data.status === 'FAILED') {
+            toast.dismiss(toastId);
+            toast.error('Failed to generate design. Please try again.');
+            setIsLoading(false);
+            return;
+          }
+  
+          // If still pending, continue polling
+          attempts++;
+          setTimeout(checkStatus, pollInterval);
+  
         } catch (error) {
-          console.error('Error polling for result:', error);
-          toast.error('Failed to generate design. Please try again.');
+          toast.dismiss(toastId);
+          console.error('Error checking status:', error);
+          toast.error('Error checking generation status');
+          setIsLoading(false);
         }
       };
-
-      await pollResult();
-    } else {
-      // Handle immediate success case
-      setAiOutputImage(result.data.result);
-      updateCredits(result.data.updatedCredits);
-      toast.success('Design generated successfully!');
-      setOpenOutputDialog(true);
+  
+      // Start polling after a short delay
+      setTimeout(checkStatus, 5000);
+  
+    } catch (error) {
+      console.error('Error generating room design:', error);
+      toast.error(error.response?.data?.message || 'Failed to generate room design');
+      setIsLoading(false);
     }
-
-  } catch (error) {
-    console.error('Error generating room design:', error);
-    toast.error(error.response?.data?.message || 'Failed to generate room design');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <div>

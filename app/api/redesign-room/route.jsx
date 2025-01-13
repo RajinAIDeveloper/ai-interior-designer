@@ -31,12 +31,12 @@ export async function POST(req) {
       }
     );
 
-    // console.log('oututis is: ', output)
+    console.log('oututis is: ', output)
 
     
-    // if (output?.error) {
-    //   throw new Error(output.error);
-    // }
+    if (output?.error) {
+      throw new Error(output.error);
+    }
 
     // return NextResponse.json({ result: output });
 

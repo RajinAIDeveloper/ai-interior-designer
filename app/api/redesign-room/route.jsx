@@ -5,16 +5,10 @@ import { uploadImage } from "../../../app/supabase/client";
 import { db } from "../../../config/db";
 import { AiGeneratedImage } from "../../../config/schema";
 
-// Configure timeout for the entire request
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-    responseLimit: '50mb',
-  },
-  maxDuration: 300, // Set max duration to 5 minutes
-};
+// New Next.js 14 route configuration format
+export const runtime = 'nodejs'; // 'edge' or 'nodejs'
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function POST(req) {
   const { imageUrl, roomType, designType, additional, userEmail } = await req.json();

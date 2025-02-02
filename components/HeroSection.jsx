@@ -1,4 +1,3 @@
-// components/HeroSection.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
@@ -18,6 +17,9 @@ const staggerChildren = {
     }
   }
 };
+
+// Create a motion button component
+const MotionButton = motion(Button);
 
 export const HeroSection = () => (
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
@@ -46,16 +48,15 @@ export const HeroSection = () => (
       </motion.p>
       
       <motion.div variants={fadeInUp}>
-        <Link href={`/sign-in`}>
-        <Button 
-          className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-6 text-lg rounded-full"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Get Started <ArrowRight className="ml-2" />
-        </Button>
+        <Link href="/sign-in">
+          <MotionButton 
+            className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-6 text-lg rounded-full"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Get Started <ArrowRight className="ml-2" />
+          </MotionButton>
         </Link>
-        
       </motion.div>
     </motion.div>
 

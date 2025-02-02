@@ -1,8 +1,10 @@
-// components/FeatureCard.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
+
+// Create a motion button component
+const MotionButton = motion(Button);
 
 export const FeatureCard = ({ icon: Icon, title, description, onLearnMore }) => (
   <motion.div 
@@ -17,12 +19,14 @@ export const FeatureCard = ({ icon: Icon, title, description, onLearnMore }) => 
     </div>
     <h3 className="font-semibold text-xl mb-3">{title}</h3>
     <p className="text-slate-600 mb-4">{description}</p>
-    <Button 
+    <MotionButton 
       variant="ghost" 
       className="text-slate-800 hover:text-slate-600"
       onClick={onLearnMore}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
     >
       Learn more <ArrowRight className="ml-2 w-4 h-4" />
-    </Button>
+    </MotionButton>
   </motion.div>
 );

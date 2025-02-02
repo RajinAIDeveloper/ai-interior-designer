@@ -1,7 +1,7 @@
 import {Outfit} from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-import Provider from "../provider";
+// import Provider from "../provider";
 import { Toaster } from "react-hot-toast";
 
 const outfit = Outfit({subsets:['latin']})
@@ -18,10 +18,10 @@ export default function RootLayout({ children }) {
       <body
         className={outfit.className}
       >
-        <Provider>
+        {/* <Provider> */}
           {children}
           <Toaster position="top-center" />
-        </Provider>
+        {/* </Provider> */}
       </body>
     </html>
     </ClerkProvider>

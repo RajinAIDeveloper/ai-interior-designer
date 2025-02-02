@@ -3,12 +3,11 @@
 import React, { useEffect, useState, memo } from 'react';
 import Image from 'next/image';
 import { UserButton, useUser } from '@clerk/nextjs';
-import useUserStore from '@/store/useUserStore';
 import { Button } from '../../../components/ui/button';
 import LoadingHeader from './HeaderLoader';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
-
+import axios from 'axios';
 
 const LogoSection = memo(() => (
   <Link href="/" className="flex gap-2 md:gap-5 items-center p-2 md:p-4 hover:opacity-90 transition-opacity">
@@ -49,27 +48,22 @@ const NavigationButtons = memo(({ isMobile = false }) => {
 
 NavigationButtons.displayName = 'NavigationButtons';
 
-const CreditsDisplay = memo(() => {
-  const credits = useUserStore(state => state.userDetail?.credits ?? 0);
-  
-  return (
-    <div className="flex gap-2 p-1 items-center bg-slate-300 rounded-full px-3 md:px-5">
-      <Image
-        src="/credit.svg"
-        alt="Credits"
-        width={16}
-        height={16}
-        className="w-4 h-4 md:w-5 md:h-5"
-      />
-      <h2 className="text-sm md:text-base">{credits}</h2>
-    </div>
-  );
-});
-
+const CreditsDisplay = memo(({ credits }) => (
+  <div className="flex gap-2 p-1 items-center bg-slate-300 rounded-full px-3 md:px-5">
+    <Image
+      src="/credit.svg"
+      alt="Credits"
+      width={16}
+      height={16}
+      className="w-4 h-4 md:w-5 md:h-5"
+    />
+    <h2 className="text-sm md:text-base">{credits}</h2>
+  </div>
+));
 
 CreditsDisplay.displayName = 'CreditsDisplay';
 
-const MobileMenu = memo(({ isOpen, isSignedIn }) => (
+const MobileMenu = memo(({ isOpen, isSignedIn, credits }) => (
   <div 
     className={`
       fixed top-16 right-0 w-64 bg-white shadow-lg rounded-bl-lg
@@ -83,7 +77,7 @@ const MobileMenu = memo(({ isOpen, isSignedIn }) => (
         <>
           <NavigationButtons isMobile={true} />
           <div className="px-4 py-3 border-t">
-            <CreditsDisplay />
+            <CreditsDisplay credits={credits} />
           </div>
         </>
       ) : (
@@ -100,16 +94,58 @@ const MobileMenu = memo(({ isOpen, isSignedIn }) => (
 MobileMenu.displayName = 'MobileMenu';
 
 const Header = () => {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [credits, setCredits] = useState(0);
 
-  // Handle initial loading state
   useEffect(() => {
+    const verifyUser = async () => {
+      if (!isSignedIn || !user) return;
+
+      try {
+        // Try to verify existing user
+        const response = await axios.post('/api/verify-user', {
+          user: {
+            primaryEmailAddress: user.primaryEmailAddress,
+            email: user.primaryEmailAddress?.emailAddress,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            imageUrl: user.imageUrl
+          }
+        });
+
+        if (response.data?.result) {
+          setCredits(response.data.result.credits || 0);
+          return;
+        }
+      } catch (error) {
+        // If user not found, create new user
+        if (error.response?.status === 404) {
+          try {
+            const createResponse = await axios.post('/api/add-user-to-db', {
+              user: {
+                email: user.primaryEmailAddress?.emailAddress,
+                name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                imageUrl: user.imageUrl
+              }
+            });
+
+            if (createResponse.data?.result) {
+              setCredits(createResponse.data.result.credits || 0);
+            }
+          } catch (createError) {
+            console.error('Error creating user:', createError);
+          }
+        }
+      }
+    };
+
     if (isLoaded) {
       setIsInitialLoad(false);
+      verifyUser();
     }
-  }, [isLoaded]);
+  }, [isLoaded, isSignedIn, user]);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -148,7 +184,7 @@ const Header = () => {
           <>
             <NavigationButtons />
             <div className="hidden md:flex gap-4 md:gap-7 items-center p-2 md:p-4">
-              <CreditsDisplay />
+              <CreditsDisplay credits={credits} />
             </div>
             <UserButton 
               afterSignOutUrl="/" 
@@ -184,7 +220,7 @@ const Header = () => {
         </Button>
       </div>
 
-      <MobileMenu isOpen={isMobileMenuOpen} isSignedIn={isSignedIn} />
+      <MobileMenu isOpen={isMobileMenuOpen} isSignedIn={isSignedIn} credits={credits} />
     </header>
   );
 };

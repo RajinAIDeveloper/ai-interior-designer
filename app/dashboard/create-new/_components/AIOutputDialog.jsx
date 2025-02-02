@@ -27,20 +27,15 @@ const AIOutputDialog = ({openDialog, closeDialog, originalImage, aiImage}) => {
   };
 
   const delimiterIconStyles = {
-    width: '40px', // Smaller for mobile
-    height: '40px', // Smaller for mobile
+    width: 'clamp(2rem, 5vw, 3.125rem)',
+    height: 'clamp(2rem, 5vw, 3.125rem)',
     backgroundColor: 'white',
     borderRadius: '50%',
-    padding: '8px', // Reduced padding
+    padding: 'clamp(0.5rem, 1vw, 0.625rem)',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    '@media (min-width: 768px)': {
-      width: '50px', // Original size for desktop
-      height: '50px',
-      padding: '10px'
-    }
+    justifyContent: 'center'
   };
 
   const downloadImages = async () => {
@@ -78,50 +73,55 @@ const AIOutputDialog = ({openDialog, closeDialog, originalImage, aiImage}) => {
 
   return (
     <AlertDialog open={openDialog} onOpenChange={closeDialog}>
-      <AlertDialogContent className="max-w-[95vw] md:max-w-5xl p-3 md:p-6 bg-white rounded-lg shadow-2xl">
-        <AlertDialogHeader className="relative mb-2 md:mb-4">
-          <AlertDialogTitle className="text-xl md:text-2xl font-bold text-gray-900">
+      <AlertDialogContent className="max-w-[95vw] w-full lg:max-w-5xl max-h-screen bg-white rounded-lg shadow-2xl flex flex-col">
+        {/* Fixed Header */}
+        <AlertDialogHeader className="relative p-2 sm:p-3 lg:p-6 border-b border-gray-200">
+          <AlertDialogTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
             Result:
           </AlertDialogTitle>
           <Button
             variant="ghost" 
-            className="absolute right-0 top-0 p-1 md:p-2 hover:bg-gray-100 rounded-full"
+            className="absolute right-2 top-2 p-1 sm:p-1.5 lg:p-2 hover:bg-gray-100 rounded-full"
             onClick={() => closeDialog(false)}
           >
-            <X className="h-5 w-5 md:h-6 md:w-6 text-gray-600" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-gray-600" />
             <span className="sr-only">Close</span>
           </Button>
         </AlertDialogHeader>
         
-        <div className="w-full h-[300px] md:h-[600px] relative rounded-lg overflow-hidden border border-gray-200">
-          {originalImage && aiImage && (
-            <ReactBeforeSliderComponent
-              firstImage={firstImage}
-              secondImage={secondImage}
-              withResizeFeel={true}
-              delimiterColor="#ffffff"
-              delimiterIconStyles={delimiterIconStyles}
-              className="h-full"
-            />
-          )}
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-6">
+          <div className="w-full h-[250px] sm:h-[350px] md:h-[450px] lg:h-[600px] relative rounded-lg overflow-hidden border border-gray-200">
+            {originalImage && aiImage && (
+              <ReactBeforeSliderComponent
+                firstImage={firstImage}
+                secondImage={secondImage}
+                withResizeFeel={true}
+                delimiterColor="#ffffff"
+                delimiterIconStyles={delimiterIconStyles}
+                className="h-full"
+              />
+            )}
+          </div>
         </div>
 
-        <AlertDialogFooter className="mt-3 md:mt-6">
-          <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full">
+        {/* Fixed Footer */}
+        <AlertDialogFooter className="border-t border-gray-200 p-2 sm:p-3 lg:p-6">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4 w-full">
             <Button 
               onClick={() => closeDialog(false)}
               variant="outline"
-              className="w-full py-1.5 md:py-2 text-base md:text-lg"
+              className="w-full py-1 sm:py-1.5 lg:py-2 text-sm sm:text-base lg:text-lg"
             >
               Close
             </Button>
             <Button 
-              className="w-full py-1.5 md:py-2 text-base md:text-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+              className="w-full py-1 sm:py-1.5 lg:py-2 text-sm sm:text-base lg:text-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
               onClick={downloadImages}
             >
-              <Download className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden md:inline">Download Both Images</span>
-              <span className="inline md:hidden">Download</span>
+              <Download className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+              <span className="hidden sm:inline">Download Both Images</span>
+              <span className="inline sm:hidden">Download</span>
             </Button>
           </div>
         </AlertDialogFooter>

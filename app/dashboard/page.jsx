@@ -8,6 +8,9 @@ import { Loader2 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import RoomCard from './_components/RoomCard';
 import EmptyList from './_components/EmptyList';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const ListingPage = () => {
   const { isSignedIn, user, isLoaded } = useUser();
@@ -160,7 +163,15 @@ const ListingPage = () => {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Your AI Interior Designs</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Your AI Interior Designs</h1>
+        <Link href="/dashboard/create-new">
+          <Button className="bg-slate-600 hover:bg-slate-700 text-white">
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Design
+          </Button>
+        </Link>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {listings.map((room) => (
           <RoomCard key={room.id} room={room} />

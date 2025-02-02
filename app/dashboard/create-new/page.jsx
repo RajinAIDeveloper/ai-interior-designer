@@ -1,6 +1,6 @@
-// app/dashboard/create-new/page.jsx
 'use client'
-import React, { useEffect } from 'react'
+
+import React, { useState, useEffect } from 'react'
 import { uploadImage } from "../../supabase/client";
 import ImageSelection from './_components/ImageSelection'
 import RoomType from './_components/RoomType'
@@ -13,81 +13,79 @@ import AIOutputDialog from './_components/AIOutputDialog';
 import LoadingBody from './_components/BodyLoader';
 import { toast } from "react-hot-toast";
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
-import useUserStore from '@/store/useUserStore';
+import { useUser } from '@clerk/clerk-react';
 
 const CreateNewRoomDesign = () => {
   const router = useRouter();
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   
-  // Zustand store for application state
-  const userDetail = useUserStore((state) => state.userDetail);
-  const updateCredits = useUserStore((state) => state.updateCredits);
-  const verifyUser = useUserStore((state) => state.verifyUser);
-  const hasEnoughCredits = useUserStore((state) => state.hasEnoughCredits);
-  
-  // Local state
-  const [formData, setFormData] = React.useState({});
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [aiOutputImage, setAiOutputImage] = React.useState(null);
-  const [originalImage, setOriginalImage] = React.useState();
-  const [openOutputDialog, setOpenOutputDialog] = React.useState(false);
+  const [formData, setFormData] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [aiOutputImage, setAiOutputImage] = useState(null);
+  const [originalImage, setOriginalImage] = useState();
+  const [openOutputDialog, setOpenOutputDialog] = useState(false);
+  const [userDetail, setUserDetail] = useState(null);
 
-  // Effect to verify user and check credits
   useEffect(() => {
-    const initializeUser = async () => {
-      if (isLoaded && user && !userDetail) {
-        try {
-          await verifyUser(user);
-        } catch (error) {
-          console.error('Error initializing user:', error);
-          toast.error('Failed to load user details. Please try refreshing the page.');
+    const verifyUserAndCheckCredits = async () => {
+      if (!user) {
+        router.push('/sign-in');
+        return;
+      }
+
+      try {
+        const response = await axios.post('/api/verify-user', {
+          user: {
+            primaryEmailAddress: user.primaryEmailAddress,
+            email: user.primaryEmailAddress?.emailAddress,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            imageUrl: user.imageUrl
+          }
+        });
+
+        if (response.data?.result) {
+          const userData = response.data.result;
+          setUserDetail(userData);
+
+          if (userData.credits === 0) {
+            toast.error('You need credits to generate designs.');
+            router.replace('/dashboard/buy-credits');
+          }
+          return;
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          try {
+            const createResponse = await axios.post('/api/add-user-to-db', {
+              user: {
+                email: user.primaryEmailAddress?.emailAddress,
+                name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                imageUrl: user.imageUrl
+              }
+            });
+            
+            if (createResponse.data?.result) {
+              setUserDetail(createResponse.data.result);
+              router.replace('/dashboard/buy-credits');
+            }
+          } catch (createError) {
+            console.error('Error creating user:', createError);
+            toast.error('Failed to initialize user account');
+          }
+        } else {
+          console.error('Error verifying user:', error);
+          toast.error('Failed to load user details');
         }
       }
     };
 
-    initializeUser();
-  }, [isLoaded, user, userDetail, verifyUser]);
-
-  // Effect to handle zero credits
-  useEffect(() => {
-    if (userDetail && userDetail.credits === 0) {
-      toast.error('You need credits to generate designs. Please purchase credits to continue.');
-      router.replace('/dashboard/buy-credits');
-    }
-  }, [userDetail, router]);
-
-  // Show loading state during initial load
-  if (!isLoaded || (isLoaded && user && !userDetail)) {
-    return <LoadingBody />;
-  }
-
-  // Redirect if no user is authenticated
-  if (isLoaded && !user) {
-    router.push('/sign-in');
-    return null;
-  }
+    verifyUserAndCheckCredits();
+  }, [user, router]);
 
   const onHandleFileSelected = (value, fileType) => {
     setFormData(prev => ({...prev, [fileType]: value}));
   }
-
-  const checkCredits = async () => {
-    if (!userDetail?.id) {
-      toast.error('User details not found. Please try refreshing the page.');
-      return false;
-    }
-
-    if (!hasEnoughCredits()) {
-      toast.error('You need credits to generate designs. Please purchase credits to continue.');
-      router.replace('/dashboard/buy-credits');
-      return false;
-    }
-
-    return true;
-  };
-
-  // In your CreateNewRoomDesign component
 
   const GenerateAiImage = async () => {
     if (!formData.image || !formData.roomType || !formData.designType) {
@@ -96,9 +94,6 @@ const CreateNewRoomDesign = () => {
     }
 
     try {
-      const hasCredits = await checkCredits();
-      if (!hasCredits) return;
-
       setIsLoading(true);
       
       const { imageUrl, error } = await uploadImage({
@@ -106,47 +101,27 @@ const CreateNewRoomDesign = () => {
         bucket: "room_images",
       });
 
-      if (error) {
-        throw new Error('Failed to upload image');
-      }
+      if (error) throw new Error('Failed to upload image');
 
       setOriginalImage(imageUrl);
 
-      
-
-      // updateCredits();
-      //   toast.success('Design generated successfully!');
-      //   setOpenOutputDialog(true);
-      
       const result = await axios.post('/api/redesign-room', {
         imageUrl: imageUrl,
         roomType: formData.roomType,
         designType: formData.designType,
         additional: formData.additional,
-        userEmail: user.emailAddresses[0].emailAddress
+        userEmail: user.primaryEmailAddress?.emailAddress
       });
       
       setAiOutputImage(result.data.result);
 
-
       if (result.data.success) {
-        updateCredits(result.data.updatedCredits);
+        setUserDetail(prev => ({...prev, credits: result.data.updatedCredits}));
         toast.success('Design generated successfully!');
-        
+        setOpenOutputDialog(true);
       } else {
         throw new Error(result.data.error || 'Failed to update credits');
       }
-
-      setOpenOutputDialog(true);
-
-
-
-      // const response = await axios.post('/api/deduct-credits', {
-      //   userId: userDetail.id,
-      //   currentCredits: userDetail.credits || 0
-      // });
-
-      
     } catch (error) {
       console.error('Error generating room design:', error);
       toast.error(error.message || 'Failed to generate room design');
@@ -154,6 +129,8 @@ const CreateNewRoomDesign = () => {
       setIsLoading(false);
     }
   }
+
+  if (!userDetail) return <LoadingBody />;
 
   return (
     <div>
@@ -174,15 +151,15 @@ const CreateNewRoomDesign = () => {
             className='mt-5 w-full' 
             onClick={GenerateAiImage}
             disabled={isLoading || !formData.image || !formData.roomType || 
-                     !formData.designType || !hasEnoughCredits()}
+                     !formData.designType || userDetail.credits === 0}
           >
-            {!hasEnoughCredits() 
+            {userDetail.credits === 0 
               ? 'Purchase Credits to Generate Designs' 
               : 'Create Room Design'
             }
           </Button>
           <p className='text-sm text-gray-500 mb-52'>
-            Note: 1 Credit will be used to redesign your room. You currently have {userDetail?.credits || 0} credits.
+            Note: 1 Credit will be used to redesign your room. You currently have {userDetail.credits} credits.
           </p>
         </div>
       </div>
